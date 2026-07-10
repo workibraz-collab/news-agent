@@ -1,0 +1,31 @@
+# Flux RSS regroupés par thème.
+# Ajoute/retire des URLs librement : chaque flux cassé est ignoré (loggé) sans faire planter le run.
+
+basket:
+  - https://news.google.com/rss/search?q=NBA+OR+basketball&hl=fr&gl=FR&ceid=FR:fr
+
+football:
+  - https://news.google.com/rss/search?q=football+OR+%22Ligue+1%22+OR+%22Champions+League%22&hl=fr&gl=FR&ceid=FR:fr
+  - https://www.franceinfo.fr/sports/foot.rss
+
+politique_nationale:
+  - https://www.franceinfo.fr/politique.rss
+  - https://news.google.com/rss/search?q=politique+France&hl=fr&gl=FR&ceid=FR:fr
+
+politique_internationale:
+  - https://news.google.com/rss/search?q=g%C3%A9opolitique+OR+%22politique+internationale%22&hl=fr&gl=FR&ceid=FR:fr
+  - https://www.franceinfo.fr/monde.rss
+
+catastrophes_naturelles:
+  - https://news.google.com/rss/search?q=catastrophe+naturelle+OR+s%C3%A9isme+OR+ouragan+OR+inondation&hl=fr&gl=FR&ceid=FR:fr
+  - https://www.laprovence.com/rss/faits-divers.xml
+
+economie:
+  - https://news.google.com/rss/search?q=%C3%A9conomie+France+OR+%C3%A9conomie+mondiale&hl=fr&gl=FR&ceid=FR:fr
+
+tech:
+  - https://news.google.com/rss/search?q=intelligence+artificielle+OR+technologie&hl=fr&gl=FR&ceid=FR:fr
+
+actu_generale_tf1:
+  # TF1 Info n'a pas de flux RSS d'articles officiel actif -> on passe par Google News filtré sur leur site.
+  - https://news.google.com/rss/search?q=site:tf1info.fr&hl=fr&gl=FR&ceid=FR:fr
