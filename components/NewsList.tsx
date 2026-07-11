@@ -5,12 +5,48 @@ import { ACCENT_CLASSES } from "@/lib/accent";
 import { FEEDS } from "@/lib/feeds";
 import { timeAgo } from "@/lib/time";
 
-function Placeholder({ emoji, gradient }: { emoji: string; gradient: string }) {
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// Directions littérales pour que Tailwind les détecte (pas d'interpolation possible).
+const GRADIENT_DIRECTIONS = [
+  "bg-gradient-to-br",
+  "bg-gradient-to-tr",
+  "bg-gradient-to-bl",
+  "bg-gradient-to-tl",
+  "bg-gradient-to-r",
+  "bg-gradient-to-b",
+];
+
+/** Placeholder utilisé quand aucune image (ni du flux, ni og:image) n'a été
+ * trouvée. Varié de façon déterministe (à partir du lien) pour éviter que
+ * toute une rubrique affiche exactement le même visuel. */
+function Placeholder({ seed, emoji, gradient }: { seed: string; emoji: string; gradient: string }) {
+  const h = hashString(seed);
+  const direction = GRADIENT_DIRECTIONS[h % GRADIENT_DIRECTIONS.length];
+  const rotation = (h % 41) - 20;
+  const scale = 0.85 + ((h >> 4) % 30) / 100;
+  const stripeAngle = ((h >> 8) % 4) * 45;
+
   return (
     <div
-      className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${gradient} text-5xl`}
+      className={`relative flex h-full w-full items-center justify-center overflow-hidden ${direction} ${gradient}`}
     >
-      {emoji}
+      <div
+        className="absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `repeating-linear-gradient(${stripeAngle}deg, #fff 0 2px, transparent 2px 16px)`,
+        }}
+      />
+      <span
+        className="relative text-5xl drop-shadow-md"
+        style={{ transform: `rotate(${rotation}deg) scale(${scale})` }}
+      >
+        {emoji}
+      </span>
     </div>
   );
 }
@@ -35,7 +71,7 @@ function HeroCard({ item }: { item: NewsItem }) {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
-          <Placeholder emoji={category.emoji} gradient={accent.gradient} />
+          <Placeholder seed={item.link} emoji={category.emoji} gradient={accent.gradient} />
         )}
       </div>
       <div className="flex flex-col justify-center gap-3 p-6">
@@ -78,7 +114,7 @@ function Card({ item, delayMs }: { item: NewsItem; delayMs: number }) {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
           />
         ) : (
-          <Placeholder emoji={category.emoji} gradient={accent.gradient} />
+          <Placeholder seed={item.link} emoji={category.emoji} gradient={accent.gradient} />
         )}
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-1">
