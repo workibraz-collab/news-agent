@@ -60,7 +60,7 @@ function HeroCard({ item }: { item: NewsItem }) {
       href={item.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="animate-fade-in-up group grid overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md dark:bg-neutral-900 sm:grid-cols-2 border-gray-200 dark:border-gray-800"
+      className={`animate-fade-in-up group grid overflow-hidden rounded-2xl border-2 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 sm:grid-cols-2 ${accent.border} ${accent.tint} ${accent.hoverBorder}`}
     >
       <div className="aspect-[16/9] sm:aspect-auto sm:h-full">
         {item.image ? (
@@ -103,7 +103,7 @@ function Card({ item, delayMs }: { item: NewsItem; delayMs: number }) {
       target="_blank"
       rel="noopener noreferrer"
       style={{ animationDelay: `${delayMs}ms` }}
-      className={`animate-fade-in-up group flex gap-4 rounded-xl border bg-white p-3 shadow-sm transition-shadow hover:shadow-md dark:bg-neutral-900 ${accent.border}`}
+      className={`animate-fade-in-up group flex gap-4 rounded-xl border-2 p-3 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 ${accent.border} ${accent.tint} ${accent.hoverBorder}`}
     >
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
         {item.image ? (
