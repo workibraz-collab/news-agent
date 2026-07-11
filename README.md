@@ -9,8 +9,10 @@ résume avec Gemini, et envoie un email court ou détaillé selon l'importance.
 1. **Clé Gemini (gratuite)** : créer une clé sur [Google AI Studio](https://aistudio.google.com/apikey).
 2. **Clé Resend (gratuite)** : créer un compte sur [resend.com](https://resend.com), récupérer une clé API
    dans les paramètres. Par défaut le script envoie depuis `onboarding@resend.dev` (domaine de test Resend,
-   fonctionne sans configuration DNS). Si Resend refuse pour ton compte, remplace via la variable
-   `RESEND_FROM` par un email d'un domaine que tu as vérifié dans Resend.
+   fonctionne sans configuration DNS) — **mais en mode test, Resend n'autorise l'envoi qu'à l'adresse email
+   associée à ton compte Resend**, pas à n'importe quel destinataire. `DEST_EMAIL` doit donc être cette
+   adresse-là, sauf si tu vérifies un domaine perso dans Resend (auquel cas tu peux envoyer où tu veux, en
+   changeant aussi `RESEND_FROM` pour utiliser ce domaine).
 3. Dans le repo GitHub → **Settings → Secrets and variables → Actions**, ajouter :
    - `GEMINI_API_KEY`
    - `RESEND_API_KEY`
@@ -50,5 +52,6 @@ Un flux cassé est ignoré (loggé) sans faire planter le run.
 - Si aucun article récent n'est trouvé, un email très court est envoyé sans appeler Gemini (économie de quota).
 - Si l'appel Gemini échoue ou renvoie un JSON invalide, un digest de secours basique est envoyé plutôt
   que rien du tout.
-- Le nom du modèle Gemini est configurable via `GEMINI_MODEL` (défaut `gemini-2.0-flash`) si Google
-  change les noms de modèles disponibles.
+- Le nom du modèle Gemini est configurable via `GEMINI_MODEL` (défaut `gemini-flash-latest`, un alias
+  maintenu par Google vers leur modèle flash courant — plus pérenne qu'un numéro de version figé, qui
+  finit par perdre son quota gratuit ou être retiré).

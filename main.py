@@ -23,7 +23,7 @@ LOOKBACK_HOURS = 2.5  # buffer au-delà de 2h pour ne rien rater entre deux runs
 MAX_ITEMS_PER_TOPIC = 12  # cap par thème, pour qu'un thème prolifique (ex: football)
 # n'écrase pas les thèmes plus rares (ex: catastrophes naturelles) dans le prompt Gemini
 
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 DEST_EMAIL = os.environ.get("DEST_EMAIL")
