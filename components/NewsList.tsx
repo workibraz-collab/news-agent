@@ -62,7 +62,7 @@ function HeroCard({ item }: { item: NewsItem }) {
       rel="noopener noreferrer"
       className={`animate-fade-in-up group grid overflow-hidden rounded-2xl border-2 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 sm:grid-cols-2 ${accent.border} ${accent.tint} ${accent.hoverBorder}`}
     >
-      <div className="aspect-[16/9] sm:aspect-auto sm:h-full">
+      <div className="relative aspect-[16/9] sm:aspect-auto sm:h-full">
         {item.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -72,6 +72,11 @@ function HeroCard({ item }: { item: NewsItem }) {
           />
         ) : (
           <Placeholder seed={item.link} emoji={category.emoji} gradient={accent.gradient} />
+        )}
+        {item.imageIsIllustration && (
+          <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+            Illustration
+          </span>
         )}
       </div>
       <div className="flex flex-col justify-center gap-3 p-6">
@@ -105,7 +110,7 @@ function Card({ item, delayMs }: { item: NewsItem; delayMs: number }) {
       style={{ animationDelay: `${delayMs}ms` }}
       className={`animate-fade-in-up group flex gap-4 rounded-xl border-2 p-3 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 ${accent.border} ${accent.tint} ${accent.hoverBorder}`}
     >
-      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
         {item.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -115,6 +120,14 @@ function Card({ item, delayMs }: { item: NewsItem; delayMs: number }) {
           />
         ) : (
           <Placeholder seed={item.link} emoji={category.emoji} gradient={accent.gradient} />
+        )}
+        {item.imageIsIllustration && (
+          <span
+            title="Photo d'illustration, pas l'image originale de l'article"
+            className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/50 text-[9px] backdrop-blur-sm"
+          >
+            📷
+          </span>
         )}
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-1">

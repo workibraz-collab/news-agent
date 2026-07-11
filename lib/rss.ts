@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
 import { CATEGORY_KEYS, FEEDS, type CategoryKey } from "./feeds";
 import { resolveMissingImages } from "./og-image";
+import { fetchCategoryStockPhotos } from "./pexels";
 
 type CustomItem = { "media:content"?: { $?: { url?: string } } };
 
@@ -16,6 +17,8 @@ export interface NewsItem {
   source: string;
   publishedAt: string | null;
   image: string | null;
+  /** true si `image` est une photo d'illustration générique (Pexels), pas la vraie photo de l'article. */
+  imageIsIllustration: boolean;
   excerpt: string;
 }
 
@@ -38,6 +41,7 @@ async function fetchFeed(url: string, category: CategoryKey): Promise<NewsItem[]
       source,
       publishedAt: item.isoDate || item.pubDate || null,
       image: item.enclosure?.url || item["media:content"]?.$?.url || null,
+      imageIsIllustration: false,
       excerpt: stripHtml(item.contentSnippet || item.content || "").slice(0, 160),
     }));
   } catch (err) {
@@ -87,8 +91,10 @@ async function fetchUrlsBalanced(
 
 /**
  * Derniers articles d'une rubrique, pour l'affichage direct (pas de fenêtre temporelle).
- * Complète l'image des articles qui n'en ont pas via og:image quand c'est
- * possible (voir lib/og-image.ts), pour varier les visuels de la rubrique.
+ * Complète l'image des articles qui n'en ont pas : d'abord via og:image quand
+ * c'est possible (voir lib/og-image.ts), puis via une photo d'illustration
+ * Pexels sur le thème de la rubrique pour les cas restants (typiquement les
+ * liens Google News, dont l'article réel est inatteignable).
  */
 export async function fetchCategoryItems(
   category: CategoryKey,
@@ -96,6 +102,17 @@ export async function fetchCategoryItems(
 ): Promise<NewsItem[]> {
   const items = await fetchUrlsBalanced(FEEDS[category].urls, category, limit);
   await resolveMissingImages(items);
+
+  const stillMissing = items.filter((item) => !item.image);
+  if (stillMissing.length > 0) {
+    const stockPhotos = await fetchCategoryStockPhotos(category);
+    stillMissing.forEach((item, i) => {
+      if (stockPhotos.length === 0) return;
+      item.image = stockPhotos[i % stockPhotos.length];
+      item.imageIsIllustration = true;
+    });
+  }
+
   return items;
 }
 
