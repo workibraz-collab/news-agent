@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchItemsForSummary } from "@/lib/rss";
-import { buildPrompt, callGemini, fallbackDigest } from "@/lib/gemini";
+import { buildPrompt, callGemini, fallbackDigest, type Digest } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +9,12 @@ export async function GET() {
     const items = await fetchItemsForSummary();
 
     if (items.length === 0) {
-      return NextResponse.json({
-        status: "calme",
-        subject: "Rien de notable",
-        html_body: "<p>Rien de notable ces dernières 24 heures.</p>",
-      });
+      const empty: Digest = { status: "calme", subject: "Rien de notable", sections: [] };
+      return NextResponse.json(empty);
     }
 
     try {
-      const digest = await callGemini(buildPrompt(items));
+      const digest = await callGemini(buildPrompt(items), items);
       return NextResponse.json(digest);
     } catch (err) {
       console.warn("[api/summary] échec Gemini, digest de secours:", err);

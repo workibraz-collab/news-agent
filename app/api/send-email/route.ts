@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/resend";
+import { renderDigestEmailHtml } from "@/lib/email-render";
+import type { Digest } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   try {
-    const { subject, html_body, to } = await request.json();
-    if (!subject || !html_body) {
-      return NextResponse.json({ error: "subject et html_body requis" }, { status: 400 });
+    const body = (await request.json()) as Digest & { to?: string };
+    if (!body.subject || !Array.isArray(body.sections)) {
+      return NextResponse.json({ error: "digest invalide" }, { status: 400 });
     }
-    await sendEmail(subject, html_body, to);
+    const html = renderDigestEmailHtml(body);
+    await sendEmail(body.subject, html, body.to);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[api/send-email] erreur:", err);

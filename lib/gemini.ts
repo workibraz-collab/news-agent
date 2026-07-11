@@ -1,49 +1,70 @@
+import type { CategoryKey } from "./feeds";
 import type { NewsItem } from "./rss";
 import { timeAgo } from "./time";
 
+export type DigestStatus = "calme" | "normal" | "important";
+
+export interface DigestItem extends NewsItem {
+  blurb: string;
+}
+
+export interface DigestSection {
+  category: CategoryKey;
+  items: DigestItem[];
+}
+
 export interface Digest {
-  status: "calme" | "normal" | "important";
+  status: DigestStatus;
   subject: string;
-  html_body: string;
+  sections: DigestSection[];
+}
+
+interface RawPick {
+  index: number;
+  blurb: string;
+}
+
+interface RawDigest {
+  status: DigestStatus;
+  subject: string;
+  picks: RawPick[];
 }
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
 export function buildPrompt(items: NewsItem[]): string {
   const lines = [
-    "Tu es un assistant de veille qui prépare un résumé pour un utilisateur " +
+    "Tu es un rédacteur en chef qui prépare l'édition du jour pour un lecteur " +
       "intéressé par : basket, football, politique nationale et internationale, " +
       "catastrophes naturelles, économie, tech.",
     "",
-    "Voici des articles récents. Ignore le bruit, le clickbait et les doublons. " +
-      "Ne garde que ce qui est réellement notable.",
+    "Voici les articles récents disponibles, numérotés. Ignore le bruit, le clickbait " +
+      "et les doublons.",
     "",
   ];
-  for (const item of items) {
-    const when = timeAgo(item.publishedAt);
-    lines.push(
-      `- [${item.category}] ${item.title} (${item.source}, ${when || "heure inconnue"}) — ${item.link}`
-    );
-  }
+  items.forEach((item, index) => {
+    const when = timeAgo(item.publishedAt) || "heure inconnue";
+    lines.push(`${index}. [${item.category}] ${item.title} (${item.source}, ${when})`);
+  });
   lines.push(
     "",
+    "Choisis les infos qui méritent vraiment d'être retenues (pas de limite stricte, mais " +
+      "reste sélectif) et rédige pour chacune un court commentaire éditorial (\"blurb\"), 1-2 " +
+      "phrases, qui apporte du contexte ou explique pourquoi c'est notable — ne répète pas juste " +
+      "le titre. Mentionne le timing de façon approximative si pertinent (ex: \"il y a 3h\").",
+    "",
     "Réponds UNIQUEMENT avec un JSON de la forme :",
-    '{"status": "calme|normal|important", "subject": "...", "html_body": "..."}',
+    '{"status": "calme|normal|important", "subject": "...", "picks": [{"index": 0, "blurb": "..."}]}',
     "",
     "Règles :",
-    "- status='calme' si rien de vraiment notable (subject et html_body très courts, 1-2 phrases).",
-    "- status='normal' pour de l'actu intéressante mais pas urgente (résumé court par thème).",
-    "- status='important' pour de l'actu majeure/urgente (résumé structuré par thème, plus complet, " +
-      "liens inclus dans le html_body).",
-    "- html_body doit être du HTML simple et lisible (titres, listes).",
-    "- Pour chaque info mentionnée, indique quand elle a eu lieu de façon approximative " +
-      "(ex: \"il y a 3h\", \"ce matin\", \"hier\") en te basant sur l'heure donnée entre parenthèses " +
-      "à côté de chaque article ci-dessus — même approximatif, c'est mieux que rien.",
+    "- status='calme' si rien de vraiment notable (peu de picks, subject très factuel).",
+    "- status='normal' pour de l'actu intéressante mais pas urgente.",
+    "- status='important' pour de l'actu majeure/urgente.",
+    "- \"index\" doit correspondre exactement au numéro de l'article dans la liste ci-dessus.",
     "- Si des articles proviennent d'une source dont le nom contient \"Provence\" (actu régionale " +
-      "PACA/Aix-Marseille), inclus TOUJOURS une section \"Actu régionale\" dédiée avec 2-3 de ces " +
-      "infos, même en status='calme', même si elles sont mineures comparées à l'actu nationale/" +
-      "internationale — l'utilisateur veut suivre son actu locale en plus du reste, ne les laisse " +
-      "jamais de côté juste parce qu'il y a une actu globale plus importante ce jour-là."
+      "PACA/Aix-Marseille), inclus TOUJOURS au moins 2 de ces picks, même en status='calme', même " +
+      "si l'actu globale du jour est plus importante — l'utilisateur veut suivre son actu locale " +
+      "en plus du reste, ne les laisse jamais de côté."
   );
   return lines.join("\n");
 }
@@ -77,7 +98,7 @@ function parseFirstJsonObject(text: string): unknown {
   throw new Error("Objet JSON incomplet dans la réponse");
 }
 
-export async function callGemini(prompt: string): Promise<Digest> {
+async function callGeminiRaw(prompt: string): Promise<RawDigest> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY manquant");
 
@@ -99,37 +120,50 @@ export async function callGemini(prompt: string): Promise<Digest> {
   const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Réponse Gemini vide ou inattendue");
 
-  const parsed = parseFirstJsonObject(text) as Partial<Digest>;
-  if (!parsed.status || !parsed.subject || !parsed.html_body) {
+  const parsed = parseFirstJsonObject(text) as Partial<RawDigest>;
+  if (!parsed.status || !parsed.subject || !Array.isArray(parsed.picks)) {
     throw new Error("JSON Gemini incomplet");
   }
-  return parsed as Digest;
+  return parsed as RawDigest;
+}
+
+/** Regroupe les picks résolus par catégorie, dans l'ordre de première apparition,
+ * en s'appuyant sur nos NewsItem d'origine (source de vérité pour lien/image/date). */
+function groupByCategory(picks: DigestItem[]): DigestSection[] {
+  const order: CategoryKey[] = [];
+  const byCategory = new Map<CategoryKey, DigestItem[]>();
+
+  for (const pick of picks) {
+    if (!byCategory.has(pick.category)) {
+      byCategory.set(pick.category, []);
+      order.push(pick.category);
+    }
+    byCategory.get(pick.category)!.push(pick);
+  }
+
+  return order.map((category) => ({ category, items: byCategory.get(category)! }));
+}
+
+export async function callGemini(prompt: string, items: NewsItem[]): Promise<Digest> {
+  const raw = await callGeminiRaw(prompt);
+
+  const picks: DigestItem[] = raw.picks
+    .filter((pick) => items[pick.index])
+    .map((pick) => ({ ...items[pick.index], blurb: pick.blurb }));
+
+  if (picks.length === 0) throw new Error("Gemini n'a sélectionné aucun article valide");
+
+  return { status: raw.status, subject: raw.subject, sections: groupByCategory(picks) };
 }
 
 /** Filet de sécurité si Gemini échoue ou renvoie un JSON invalide : on affiche
  * quand même un digest basique plutôt que rien du tout. */
 export function fallbackDigest(items: NewsItem[]): Digest {
-  const byCategory = new Map<string, NewsItem[]>();
-  for (const item of items) {
-    const list = byCategory.get(item.category) ?? [];
-    list.push(item);
-    byCategory.set(item.category, list);
-  }
-
-  const parts = [
-    "<p>(Résumé automatique brut — l'IA n'a pas pu générer le digest habituel.)</p>",
-  ];
-  for (const [category, catItems] of byCategory) {
-    parts.push(`<h3>${category}</h3><ul>`);
-    for (const item of catItems.slice(0, 5)) {
-      parts.push(`<li><a href="${item.link}">${item.title}</a> (${item.source})</li>`);
-    }
-    parts.push("</ul>");
-  }
+  const picks: DigestItem[] = items.slice(0, 20).map((item) => ({ ...item, blurb: item.excerpt }));
 
   return {
     status: "normal",
     subject: `Veille info : ${items.length} article(s)`,
-    html_body: parts.join(""),
+    sections: groupByCategory(picks),
   };
 }
