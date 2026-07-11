@@ -1,57 +1,63 @@
-# News Digest
+# Veille info
 
-Agent gratuit qui surveille des flux RSS (basket, football, politique nationale/internationale,
-catastrophes naturelles, économie, tech) toutes les 2h entre 7h et 23h (heure de Paris),
-résume avec Gemini, et envoie un email court ou détaillé selon l'importance.
+Site Next.js consultable à la demande (basket, football, politique nationale/internationale,
+catastrophes naturelles, économie, tech), avec un onglet Résumé qui agrège toutes les rubriques
+via Gemini, et un bouton optionnel pour envoyer ce résumé par email via Resend. Hébergé
+gratuitement sur Vercel.
 
-## Setup (une seule fois)
-
-1. **Clé Gemini (gratuite)** : créer une clé sur [Google AI Studio](https://aistudio.google.com/apikey).
-2. **Clé Resend (gratuite)** : créer un compte sur [resend.com](https://resend.com), récupérer une clé API
-   dans les paramètres. Par défaut le script envoie depuis `onboarding@resend.dev` (domaine de test Resend,
-   fonctionne sans configuration DNS) — **mais en mode test, Resend n'autorise l'envoi qu'à l'adresse email
-   associée à ton compte Resend**, pas à n'importe quel destinataire. `DEST_EMAIL` doit donc être cette
-   adresse-là, sauf si tu vérifies un domaine perso dans Resend (auquel cas tu peux envoyer où tu veux, en
-   changeant aussi `RESEND_FROM` pour utiliser ce domaine).
-3. Dans le repo GitHub → **Settings → Secrets and variables → Actions**, ajouter :
-   - `GEMINI_API_KEY`
-   - `RESEND_API_KEY`
-   - `DEST_EMAIL` (l'adresse qui doit recevoir les digests)
-
-## Tester en local avant de compter sur le cron
+## Setup local
 
 ```bash
-pip install -r requirements.txt
-export GEMINI_API_KEY=...
-export RESEND_API_KEY=...
-export DEST_EMAIL=toi@example.com
-export FORCE_RUN=1   # ignore le créneau horaire pour tester à n'importe quelle heure
-python main.py
+npm install
 ```
 
-## Tester le workflow GitHub Actions
+Créer un fichier `.env.local` (jamais commité) avec :
 
-Une fois les secrets ajoutés et le code poussé :
+```
+GEMINI_API_KEY=...
+RESEND_API_KEY=...
+DEST_EMAIL=...
+```
+
+- **Gemini** : clé gratuite sur [Google AI Studio](https://aistudio.google.com/apikey).
+- **Resend** : clé gratuite sur [resend.com](https://resend.com). En mode gratuit (sans domaine
+  vérifié), Resend n'autorise l'envoi qu'à l'adresse email associée au compte Resend —
+  `DEST_EMAIL` doit donc être cette adresse-là, sauf si un domaine est vérifié dans Resend
+  (auquel cas on peut aussi changer `RESEND_FROM`).
 
 ```bash
-gh workflow run digest.yml -f force_run=true
+npm run dev
 ```
 
-Puis vérifier les logs (`gh run watch`) et la réception de l'email.
+Ouvrir http://localhost:3000.
 
-## Ajuster les sources
+## Déploiement (Vercel, gratuit)
 
-Tout se configure dans [`feeds.yaml`](feeds.yaml) : ajoute/retire des flux RSS par thème.
-Un flux cassé est ignoré (loggé) sans faire planter le run.
+1. Se connecter sur [vercel.com](https://vercel.com) via "Continue with GitHub" avec le compte
+   propriétaire de ce repo.
+2. "Import Project" → sélectionner ce repo. Vercel détecte Next.js automatiquement, aucune
+   config de build à changer.
+3. Dans les réglages du projet Vercel → **Environment Variables**, ajouter `GEMINI_API_KEY`,
+   `RESEND_API_KEY`, `DEST_EMAIL` (mêmes valeurs que `.env.local`).
+4. Déployer. Chaque push sur la branche par défaut redéploie automatiquement.
+
+Sur mobile, ouvrir l'URL `*.vercel.app` puis "Ajouter à l'écran d'accueil" pour une icône
+type application (manifest PWA déjà configuré).
+
+## Structure
+
+- `lib/feeds.ts` — flux RSS par rubrique (éditable librement, un flux cassé est ignoré sans
+  faire planter l'appel)
+- `lib/rss.ts` — récupération/dédoublonnage des articles
+- `lib/gemini.ts` — prompt, appel Gemini, parsing JSON robuste, digest de secours si échec
+- `lib/resend.ts` — envoi d'email
+- `app/api/news/[category]` — derniers articles d'une rubrique (pas de clé API, rapide)
+- `app/api/summary` — résumé global via Gemini, déclenché à la demande (pas automatique)
+- `app/api/send-email` — envoie le résumé actuellement affiché
+- `components/` — UI (onglets, liste d'articles, panneau résumé)
 
 ## Notes
 
-- Le workflow tourne toutes les heures en UTC, mais `main.py` ne fait du travail (RSS + Gemini + email)
-  qu'aux heures Paris souhaitées (7h, 9h, ... 23h) — ça gère le changement d'heure automatiquement et
-  garde le coût à zéro le reste du temps.
-- Si aucun article récent n'est trouvé, un email très court est envoyé sans appeler Gemini (économie de quota).
-- Si l'appel Gemini échoue ou renvoie un JSON invalide, un digest de secours basique est envoyé plutôt
-  que rien du tout.
-- Le nom du modèle Gemini est configurable via `GEMINI_MODEL` (défaut `gemini-flash-latest`, un alias
-  maintenu par Google vers leur modèle flash courant — plus pérenne qu'un numéro de version figé, qui
-  finit par perdre son quota gratuit ou être retiré).
+- Le nom du modèle Gemini est configurable via `GEMINI_MODEL` (défaut `gemini-flash-latest`).
+- Rien n'est automatique/planifié : les appels Gemini et Resend ne se déclenchent que sur
+  action de l'utilisateur (bouton), ce qui garde l'usage largement dans les tiers gratuits.

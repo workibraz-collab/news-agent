@@ -1,0 +1,84 @@
+import Parser from "rss-parser";
+import { CATEGORY_KEYS, FEEDS, type CategoryKey } from "./feeds";
+
+const parser = new Parser({ timeout: 15000 });
+
+export interface NewsItem {
+  category: CategoryKey;
+  title: string;
+  link: string;
+  source: string;
+  publishedAt: string | null;
+}
+
+function stripHtml(text: string | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchFeed(url: string, category: CategoryKey): Promise<NewsItem[]> {
+  try {
+    const feed = await parser.parseURL(url);
+    const source = feed.title || url;
+    return (feed.items || []).map((item) => ({
+      category,
+      title: stripHtml(item.title),
+      link: item.link || "",
+      source,
+      publishedAt: item.isoDate || item.pubDate || null,
+    }));
+  } catch (err) {
+    console.warn(`[rss] échec parsing ${url}:`, err);
+    return [];
+  }
+}
+
+function dedupeAndSort(items: NewsItem[]): NewsItem[] {
+  const seen = new Set<string>();
+  const unique = items.filter((item) => {
+    if (!item.link || seen.has(item.link)) return false;
+    seen.add(item.link);
+    return true;
+  });
+  unique.sort((a, b) => {
+    const dateA = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+    const dateB = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+    return dateB - dateA;
+  });
+  return unique;
+}
+
+/** Derniers articles d'une rubrique, pour l'affichage direct (pas de fenêtre temporelle). */
+export async function fetchCategoryItems(
+  category: CategoryKey,
+  limit = 20
+): Promise<NewsItem[]> {
+  const urls = FEEDS[category].urls;
+  const results = await Promise.all(urls.map((url) => fetchFeed(url, category)));
+  return dedupeAndSort(results.flat()).slice(0, limit);
+}
+
+/**
+ * Items de toutes les rubriques pour le résumé Gemini : cap par thème pour
+ * qu'un thème prolifique (ex: football) n'écrase pas les thèmes plus rares
+ * (ex: catastrophes naturelles), fenêtré sur les dernières 24h pour rester pertinent.
+ */
+export async function fetchItemsForSummary(
+  perCategoryLimit = 12,
+  lookbackHours = 24
+): Promise<NewsItem[]> {
+  const cutoff = Date.now() - lookbackHours * 60 * 60 * 1000;
+  const perCategory = await Promise.all(
+    CATEGORY_KEYS.map(async (category) => {
+      const items = await fetchCategoryItems(category, 50);
+      const recent = items.filter(
+        (item) => item.publishedAt && Date.parse(item.publishedAt) >= cutoff
+      );
+      return recent.slice(0, perCategoryLimit);
+    })
+  );
+  return perCategory.flat();
+}
