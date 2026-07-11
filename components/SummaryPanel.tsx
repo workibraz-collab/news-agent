@@ -24,11 +24,15 @@ const STATUS_ICON: Record<Digest["status"], string> = {
   important: "🚨",
 };
 
+const REMEMBERED_EMAILS = ["workibraz@gmail.com", "massiesaie@gmail.com"];
+
 export default function SummaryPanel() {
   const [digest, setDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [to, setTo] = useState(REMEMBERED_EMAILS[0]);
 
   async function generateSummary() {
     setLoading(true);
@@ -49,15 +53,18 @@ export default function SummaryPanel() {
   async function sendEmail() {
     if (!digest) return;
     setEmailState("sending");
+    setEmailError(null);
     try {
       const res = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(digest),
+        body: JSON.stringify({ ...digest, to }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Échec de l'envoi");
       setEmailState("sent");
-    } catch {
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Échec de l'envoi");
       setEmailState("error");
     }
   }
@@ -99,7 +106,7 @@ export default function SummaryPanel() {
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(digest.html_body) }}
           />
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={generateSummary}
               disabled={loading}
@@ -107,6 +114,19 @@ export default function SummaryPanel() {
             >
               {loading ? "Génération…" : "Régénérer"}
             </button>
+
+            <select
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="rounded-full border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-neutral-900"
+            >
+              {REMEMBERED_EMAILS.map((email) => (
+                <option key={email} value={email}>
+                  {email}
+                </option>
+              ))}
+            </select>
+
             <button
               onClick={sendEmail}
               disabled={emailState === "sending"}
@@ -115,12 +135,18 @@ export default function SummaryPanel() {
               {emailState === "sending" ? "Envoi…" : "Envoyer par email"}
             </button>
             {emailState === "sent" && (
-              <span className="text-sm text-green-600 dark:text-green-400">✓ Envoyé</span>
-            )}
-            {emailState === "error" && (
-              <span className="text-sm text-red-600 dark:text-red-400">Échec de l&apos;envoi</span>
+              <span className="text-sm text-green-600 dark:text-green-400">✓ Envoyé à {to}</span>
             )}
           </div>
+          {to !== "workibraz@gmail.com" && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+              Resend (compte gratuit) n&apos;autorise l&apos;envoi qu&apos;à workibraz@gmail.com tant
+              qu&apos;aucun domaine n&apos;est vérifié — l&apos;envoi vers cette adresse échouera probablement.
+            </p>
+          )}
+          {emailState === "error" && emailError && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{emailError}</p>
+          )}
         </div>
       )}
     </div>

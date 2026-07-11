@@ -74,6 +74,11 @@ export async function fetchCategoryItems(
  * Items de toutes les rubriques pour le résumé Gemini : cap par thème pour
  * qu'un thème prolifique (ex: football) n'écrase pas les thèmes plus rares
  * (ex: catastrophes naturelles), fenêtré sur les dernières 24h pour rester pertinent.
+ *
+ * À l'intérieur d'un même thème, le cap est aussi appliqué par flux (pas juste
+ * globalement) : sinon un flux très prolifique (ex: Google News) noie les
+ * sources moins fréquentes mais tout aussi pertinentes (ex: La Provence pour
+ * l'actu régionale PACA), qui finissaient par disparaître du résumé.
  */
 export async function fetchItemsForSummary(
   perCategoryLimit = 12,
@@ -82,11 +87,20 @@ export async function fetchItemsForSummary(
   const cutoff = Date.now() - lookbackHours * 60 * 60 * 1000;
   const perCategory = await Promise.all(
     CATEGORY_KEYS.map(async (category) => {
-      const items = await fetchCategoryItems(category, 50);
-      const recent = items.filter(
-        (item) => item.publishedAt && Date.parse(item.publishedAt) >= cutoff
+      const urls = FEEDS[category].urls;
+      const perUrlLimit = Math.max(4, Math.ceil(perCategoryLimit / urls.length));
+
+      const perUrl = await Promise.all(
+        urls.map(async (url) => {
+          const items = await fetchFeed(url, category);
+          const recent = items.filter(
+            (item) => item.publishedAt && Date.parse(item.publishedAt) >= cutoff
+          );
+          return dedupeAndSort(recent).slice(0, perUrlLimit);
+        })
       );
-      return recent.slice(0, perCategoryLimit);
+
+      return dedupeAndSort(perUrl.flat()).slice(0, perCategoryLimit);
     })
   );
   return perCategory.flat();

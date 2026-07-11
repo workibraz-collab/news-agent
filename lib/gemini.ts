@@ -1,4 +1,5 @@
 import type { NewsItem } from "./rss";
+import { timeAgo } from "./time";
 
 export interface Digest {
   status: "calme" | "normal" | "important";
@@ -19,8 +20,9 @@ export function buildPrompt(items: NewsItem[]): string {
     "",
   ];
   for (const item of items) {
+    const when = timeAgo(item.publishedAt);
     lines.push(
-      `- [${item.category}] ${item.title} (${item.source}) — ${item.link}`
+      `- [${item.category}] ${item.title} (${item.source}, ${when || "heure inconnue"}) — ${item.link}`
     );
   }
   lines.push(
@@ -33,7 +35,15 @@ export function buildPrompt(items: NewsItem[]): string {
     "- status='normal' pour de l'actu intéressante mais pas urgente (résumé court par thème).",
     "- status='important' pour de l'actu majeure/urgente (résumé structuré par thème, plus complet, " +
       "liens inclus dans le html_body).",
-    "- html_body doit être du HTML simple et lisible (titres, listes)."
+    "- html_body doit être du HTML simple et lisible (titres, listes).",
+    "- Pour chaque info mentionnée, indique quand elle a eu lieu de façon approximative " +
+      "(ex: \"il y a 3h\", \"ce matin\", \"hier\") en te basant sur l'heure donnée entre parenthèses " +
+      "à côté de chaque article ci-dessus — même approximatif, c'est mieux que rien.",
+    "- Si des articles proviennent d'une source dont le nom contient \"Provence\" (actu régionale " +
+      "PACA/Aix-Marseille), inclus TOUJOURS une section \"Actu régionale\" dédiée avec 2-3 de ces " +
+      "infos, même en status='calme', même si elles sont mineures comparées à l'actu nationale/" +
+      "internationale — l'utilisateur veut suivre son actu locale en plus du reste, ne les laisse " +
+      "jamais de côté juste parce qu'il y a une actu globale plus importante ce jour-là."
   );
   return lines.join("\n");
 }

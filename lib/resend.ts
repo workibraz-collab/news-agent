@@ -1,10 +1,10 @@
-export async function sendEmail(subject: string, htmlBody: string): Promise<void> {
+export async function sendEmail(subject: string, htmlBody: string, to?: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const destEmail = process.env.DEST_EMAIL;
+  const destEmail = to || process.env.DEST_EMAIL;
   const from = process.env.RESEND_FROM || "onboarding@resend.dev";
 
   if (!apiKey || !destEmail) {
-    throw new Error("RESEND_API_KEY ou DEST_EMAIL manquant");
+    throw new Error("RESEND_API_KEY ou destinataire manquant");
   }
 
   const resp = await fetch("https://api.resend.com/emails", {
