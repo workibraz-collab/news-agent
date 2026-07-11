@@ -30,7 +30,10 @@ interface RawDigest {
   picks: RawPick[];
 }
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+// gemini-flash-latest (gemini-3.5-flash) n'a que 20 requêtes gratuites/jour :
+// épuisé en quelques tests. gemini-flash-lite-latest a un quota gratuit
+// bien plus confortable et tient très bien la charge sur ce prompt.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-lite-latest";
 
 export function buildPrompt(items: NewsItem[]): string {
   const lines = [

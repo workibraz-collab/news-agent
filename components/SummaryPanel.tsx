@@ -116,12 +116,16 @@ export default function SummaryPanel() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col gap-8">
-        {digest.sections.map((section) => {
+      <div className="mt-8 flex flex-col gap-7">
+        {digest.sections.map((section, sectionIndex) => {
           const category = FEEDS[section.category];
           const accent = ACCENT_CLASSES[category.accent];
           return (
-            <div key={section.category}>
+            <div
+              key={section.category}
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${sectionIndex * 80}ms` }}
+            >
               <h3 className="mb-3 flex items-center gap-2 font-serif text-xl font-medium text-gray-900 dark:text-gray-50">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-base ${accent.badge}`}
@@ -130,37 +134,32 @@ export default function SummaryPanel() {
                 </span>
                 {category.label}
               </h3>
-              <div className="grid gap-3">
-                {section.items.map((item) => (
-                  <a
+              <ul className="space-y-2.5">
+                {section.items.map((item, itemIndex) => (
+                  <li
                     key={item.link}
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`group flex gap-4 rounded-xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:bg-neutral-900 ${accent.border}`}
+                    className="animate-fade-in-up flex items-start gap-2.5"
+                    style={{ animationDelay: `${sectionIndex * 80 + itemIndex * 50}ms` }}
                   >
-                    {item.image && (
-                      <div className="hidden h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:block">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.image}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
-                        />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium leading-snug text-gray-900 dark:text-gray-50">
+                    <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot}`} />
+                    <p className="leading-relaxed text-gray-800 dark:text-gray-200">
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-gray-900 underline-offset-2 hover:underline dark:text-gray-50"
+                      >
                         {item.title}
-                      </p>
-                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{item.blurb}</p>
-                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
-                        {item.source} · {timeAgo(item.publishedAt)}
-                      </p>
-                    </div>
-                  </a>
+                      </a>
+                      {" — "}
+                      {item.blurb}{" "}
+                      <span className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-500">
+                        ({item.source} · {timeAgo(item.publishedAt)})
+                      </span>
+                    </p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           );
         })}
