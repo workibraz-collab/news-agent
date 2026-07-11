@@ -124,7 +124,10 @@ def call_gemini(prompt: str) -> dict:
     resp.raise_for_status()
     data = resp.json()
     text = data["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(text)
+    # Parfois du texte parasite traîne après le JSON malgré responseMimeType=json ;
+    # raw_decode ne lit que le premier objet JSON valide et ignore le reste.
+    obj, _ = json.JSONDecoder().raw_decode(text.strip())
+    return obj
 
 
 def fallback_digest(items: list[dict]) -> dict:
