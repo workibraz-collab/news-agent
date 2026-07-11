@@ -5,6 +5,35 @@ import type { CategoryKey } from "@/lib/feeds";
 import type { NewsItem } from "@/lib/rss";
 import NewsList from "./NewsList";
 
+function Skeleton() {
+  return (
+    <div className="grid gap-4">
+      <div className="grid animate-pulse gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-neutral-900 sm:grid-cols-2">
+        <div className="aspect-[16/9] bg-gray-200 dark:bg-gray-800 sm:aspect-auto" />
+        <div className="flex flex-col justify-center gap-3 p-6">
+          <div className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-800" />
+          <div className="h-6 w-full rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-6 w-2/3 rounded bg-gray-200 dark:bg-gray-800" />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex animate-pulse gap-4 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-neutral-900"
+          >
+            <div className="h-20 w-20 shrink-0 rounded-lg bg-gray-200 dark:bg-gray-800" />
+            <div className="flex flex-1 flex-col justify-center gap-2">
+              <div className="h-4 w-full rounded bg-gray-200 dark:bg-gray-800" />
+              <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-800" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CategoryPane({ category }: { category: CategoryKey }) {
   const [items, setItems] = useState<NewsItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +60,8 @@ export default function CategoryPane({ category }: { category: CategoryKey }) {
     };
   }, [category]);
 
-  if (error) return <p className="text-red-600 dark:text-red-400 py-8 text-center">{error}</p>;
-  if (!items) return <p className="text-gray-500 dark:text-gray-400 py-8 text-center">Chargement…</p>;
+  if (error) return <p className="py-16 text-center text-red-600 dark:text-red-400">{error}</p>;
+  if (!items) return <Skeleton />;
 
   return <NewsList items={items} />;
 }

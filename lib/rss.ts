@@ -1,7 +1,12 @@
 import Parser from "rss-parser";
 import { CATEGORY_KEYS, FEEDS, type CategoryKey } from "./feeds";
 
-const parser = new Parser({ timeout: 15000 });
+type CustomItem = { "media:content"?: { $?: { url?: string } } };
+
+const parser: Parser<object, CustomItem> = new Parser({
+  timeout: 15000,
+  customFields: { item: ["media:content"] },
+});
 
 export interface NewsItem {
   category: CategoryKey;
@@ -9,6 +14,8 @@ export interface NewsItem {
   link: string;
   source: string;
   publishedAt: string | null;
+  image: string | null;
+  excerpt: string;
 }
 
 function stripHtml(text: string | undefined): string {
@@ -29,6 +36,8 @@ async function fetchFeed(url: string, category: CategoryKey): Promise<NewsItem[]
       link: item.link || "",
       source,
       publishedAt: item.isoDate || item.pubDate || null,
+      image: item.enclosure?.url || item["media:content"]?.$?.url || null,
+      excerpt: stripHtml(item.contentSnippet || item.content || "").slice(0, 160),
     }));
   } catch (err) {
     console.warn(`[rss] échec parsing ${url}:`, err);

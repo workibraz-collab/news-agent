@@ -9,8 +9,13 @@ import SummaryPanel from "./SummaryPanel";
 type TabKey = CategoryKey | "summary";
 
 const TABS: TabDef[] = [
-  { key: "summary", label: "Résumé" },
-  ...CATEGORY_KEYS.map((key) => ({ key, label: FEEDS[key].label })),
+  { key: "summary", label: "Résumé", emoji: "✨", accent: "gray" },
+  ...CATEGORY_KEYS.map((key) => ({
+    key,
+    label: FEEDS[key].label,
+    emoji: FEEDS[key].emoji,
+    accent: FEEDS[key].accent,
+  })),
 ];
 
 export default function NewsApp() {
@@ -24,8 +29,16 @@ export default function NewsApp() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold mb-4">Veille info</h1>
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <header className="mb-6">
+        <h1 className="font-serif text-3xl font-semibold italic tracking-tight text-gray-900 dark:text-gray-50">
+          Veille info
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Ton édition du jour, à la demande.
+        </p>
+      </header>
+
       <Tabs tabs={TABS} active={active} onChange={handleChange} />
 
       <div className="mt-6">
