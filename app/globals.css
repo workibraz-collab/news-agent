@@ -25,3 +25,26 @@
 body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Mise en page façon colonnes de journal pour l'onglet Résumé */
+.newspaper-columns {
+  column-rule: 1px solid #d9cfae;
+}
+.newspaper-columns > * {
+  break-inside: avoid;
+}
+@media (prefers-color-scheme: dark) {
+  .newspaper-columns {
+    column-rule-color: #3f3a2e;
+  }
+}
+
+.drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-serif);
+  font-size: 3.2em;
+  line-height: 0.82;
+  padding-right: 0.09em;
+  padding-top: 0.05em;
+  font-weight: 600;
+}

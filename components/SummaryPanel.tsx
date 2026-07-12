@@ -1,29 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import type { Digest, DigestStatus } from "@/lib/gemini";
+import type { Digest, DigestItem, DigestStatus } from "@/lib/gemini";
 import { FEEDS } from "@/lib/feeds";
 import { ACCENT_CLASSES } from "@/lib/accent";
 import { timeAgo } from "@/lib/time";
 
-const STATUS_STYLE: Record<DigestStatus, string> = {
-  calme: "bg-gray-50 border-gray-200 text-gray-700 dark:bg-gray-900 dark:border-gray-800 dark:text-gray-300",
-  normal:
-    "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:text-amber-300",
-  important:
-    "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/40 dark:border-red-900 dark:text-red-300",
-};
-
 const STATUS_LABEL: Record<DigestStatus, string> = {
   calme: "Calme",
   normal: "À suivre",
-  important: "Important",
+  important: "Édition spéciale",
 };
 
-const STATUS_ICON: Record<DigestStatus, string> = {
-  calme: "🌤️",
-  normal: "📌",
-  important: "🚨",
+const STATUS_STAMP: Record<DigestStatus, string> = {
+  calme: "border-gray-400 text-gray-500 dark:border-gray-600 dark:text-gray-400",
+  normal: "border-amber-500 text-amber-600 dark:border-amber-500 dark:text-amber-400",
+  important: "border-red-600 text-red-600 dark:border-red-500 dark:text-red-400",
 };
 
 const REMEMBERED_EMAILS = ["workibraz@gmail.com", "massiesaie@gmail.com"];
@@ -38,8 +30,8 @@ function EmptyState({ loading, onGenerate }: { loading: boolean; onGenerate: () 
         Ton édition du jour t&apos;attend
       </h2>
       <p className="mx-auto mt-2 mb-6 max-w-sm text-gray-600 dark:text-gray-400">
-        Basket, foot, politique, économie, catastrophes naturelles, tech — l&apos;essentiel des
-        dernières 24h, trié et expliqué.
+        Basket, foot, politique, économie, marché boursier, catastrophes naturelles, tech —
+        l&apos;essentiel des dernières 24h, trié et expliqué.
       </p>
       <button
         onClick={onGenerate}
@@ -48,6 +40,52 @@ function EmptyState({ loading, onGenerate }: { loading: boolean; onGenerate: () 
       >
         {loading ? "Génération en cours…" : "Générer le résumé"}
       </button>
+    </div>
+  );
+}
+
+function Kicker({ item }: { item: DigestItem }) {
+  const category = FEEDS[item.category];
+  const accent = ACCENT_CLASSES[category.accent];
+  return (
+    <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-widest ${accent.text}`}>
+      {category.emoji} {category.label}
+    </p>
+  );
+}
+
+function LeadStory({ item }: { item: DigestItem }) {
+  return (
+    <div className="animate-fade-in-up border-b-2 border-gray-900 pb-6 dark:border-gray-100">
+      <Kicker item={item} />
+      <a href={item.link} target="_blank" rel="noopener noreferrer" className="group">
+        <h2 className="font-serif text-4xl font-semibold leading-[1.05] text-gray-900 group-hover:underline dark:text-gray-50 sm:text-5xl">
+          {item.title}
+        </h2>
+      </a>
+      <p className="drop-cap mt-3 max-w-3xl text-[15px] leading-relaxed text-gray-800 dark:text-gray-300">
+        {item.blurb}
+      </p>
+      <p className="mt-2 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-500">
+        {item.source} · {timeAgo(item.publishedAt)}
+      </p>
+    </div>
+  );
+}
+
+function Brief({ item, delayMs }: { item: DigestItem; delayMs: number }) {
+  return (
+    <div className="animate-fade-in-up" style={{ animationDelay: `${delayMs}ms` }}>
+      <Kicker item={item} />
+      <a href={item.link} target="_blank" rel="noopener noreferrer">
+        <h3 className="font-serif text-lg font-semibold leading-snug text-gray-900 hover:underline dark:text-gray-50">
+          {item.title}
+        </h3>
+      </a>
+      <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{item.blurb}</p>
+      <p className="mt-1.5 text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-500">
+        {item.source} · {timeAgo(item.publishedAt)}
+      </p>
     </div>
   );
 }
@@ -104,68 +142,41 @@ export default function SummaryPanel() {
     );
   }
 
+  const allItems = digest.sections.flatMap((s) => s.items);
+  const [lead, ...rest] = allItems;
+  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+
   return (
-    <div className="animate-fade-in-up mx-auto max-w-2xl">
-      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${STATUS_STYLE[digest.status]}`}>
-        <span className="text-2xl">{STATUS_ICON[digest.status]}</span>
+    <div className="animate-fade-in-up mx-auto max-w-5xl">
+      {/* Manchette */}
+      <div className="mb-4 flex items-end justify-between border-b-4 border-double border-gray-900 pb-2 dark:border-gray-100">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
-            {STATUS_LABEL[digest.status]}
+          <p className="text-[11px] uppercase tracking-widest text-gray-500 dark:text-gray-500">
+            Édition du {today}
           </p>
-          <h2 className="font-serif text-lg font-medium leading-snug">{digest.subject}</h2>
+          <h1 className="font-serif text-2xl font-semibold italic text-gray-900 dark:text-gray-50">
+            {digest.subject}
+          </h1>
         </div>
+        <span
+          className={`shrink-0 -rotate-3 rounded border-2 px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${STATUS_STAMP[digest.status]}`}
+        >
+          {STATUS_LABEL[digest.status]}
+        </span>
       </div>
 
-      <div className="mt-8 flex flex-col gap-7">
-        {digest.sections.map((section, sectionIndex) => {
-          const category = FEEDS[section.category];
-          const accent = ACCENT_CLASSES[category.accent];
-          return (
-            <div
-              key={section.category}
-              className="animate-fade-in-up"
-              style={{ animationDelay: `${sectionIndex * 80}ms` }}
-            >
-              <h3 className="mb-3 flex items-center gap-2 font-serif text-xl font-medium text-gray-900 dark:text-gray-50">
-                <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-base ${accent.badge}`}
-                >
-                  {category.emoji}
-                </span>
-                {category.label}
-              </h3>
-              <ul className="space-y-2.5">
-                {section.items.map((item, itemIndex) => (
-                  <li
-                    key={item.link}
-                    className="animate-fade-in-up flex items-start gap-2.5"
-                    style={{ animationDelay: `${sectionIndex * 80 + itemIndex * 50}ms` }}
-                  >
-                    <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${accent.dot}`} />
-                    <p className="leading-relaxed text-gray-800 dark:text-gray-200">
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-gray-900 underline-offset-2 hover:underline dark:text-gray-50"
-                      >
-                        {item.title}
-                      </a>
-                      {" — "}
-                      {item.blurb}{" "}
-                      <span className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-500">
-                        ({item.source} · {timeAgo(item.publishedAt)})
-                      </span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
+      {lead && <LeadStory item={lead} />}
+
+      <div
+        className="newspaper-columns mt-6"
+        style={{ columnWidth: "260px", columnGap: "2.5rem" }}
+      >
+        {rest.map((item, i) => (
+          <Brief key={item.link} item={item} delayMs={Math.min(i * 40, 400)} />
+        ))}
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-6 dark:border-gray-800">
         <button
           onClick={generateSummary}
           disabled={loading}

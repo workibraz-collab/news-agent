@@ -5,6 +5,7 @@ export type CategoryKey =
   | "politique_internationale"
   | "catastrophes_naturelles"
   | "economie"
+  | "marche_boursier"
   | "tech"
   | "actu_generale_tf1";
 
@@ -69,6 +70,14 @@ export const FEEDS: Record<CategoryKey, CategoryConfig> = {
     accent: "teal",
     urls: [
       "https://news.google.com/rss/search?q=%C3%A9conomie+France+OR+%C3%A9conomie+mondiale&hl=fr&gl=FR&ceid=FR:fr",
+    ],
+  },
+  marche_boursier: {
+    label: "Marché boursier",
+    emoji: "💹",
+    accent: "amber",
+    urls: [
+      "https://news.google.com/rss/search?q=bourse+OR+%22CAC+40%22+OR+%22Wall+Street%22+OR+march%C3%A9s+financiers&hl=fr&gl=FR&ceid=FR:fr",
     ],
   },
   tech: {

@@ -9,6 +9,7 @@ const CATEGORY_QUERIES: Record<CategoryKey, string> = {
   politique_internationale: "world politics geopolitics",
   catastrophes_naturelles: "natural disaster storm",
   economie: "global economy finance",
+  marche_boursier: "stock market trading exchange",
   tech: "technology artificial intelligence",
   actu_generale_tf1: "breaking news newspaper",
 };
