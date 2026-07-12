@@ -55,9 +55,13 @@ type application (manifest PWA déjà configuré).
 - `lib/rss.ts` — récupération/dédoublonnage/équilibrage des articles par flux
 - `lib/og-image.ts` — récupération de l'image réelle d'un article (og:image) quand le flux n'en fournit pas
 - `lib/pexels.ts` — photo d'illustration thématique par rubrique en dernier recours (ex: liens Google News)
+- `lib/stocks.ts` — indices boursiers en direct (CAC 40, Dow Jones, Nasdaq, S&P 500) via l'API
+  "chart" non-officielle de Yahoo Finance, gratuite et sans clé (Twelve Data réserve les indices
+  à son offre payante, testé et écarté pour cette raison)
 - `lib/gemini.ts` — prompt, appel Gemini, parsing JSON robuste, digest de secours si échec
 - `lib/resend.ts` — envoi d'email
 - `app/api/news/[category]` — derniers articles d'une rubrique (pas de clé API, rapide)
+- `app/api/stocks` — indices boursiers en direct (affichés sur la rubrique Marché boursier)
 - `app/api/summary` — résumé global via Gemini, déclenché à la demande (pas automatique)
 - `app/api/send-email` — envoie le résumé actuellement affiché
 - `components/` — UI (onglets, liste d'articles, panneau résumé)

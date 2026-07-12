@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { CategoryKey } from "@/lib/feeds";
 import type { NewsItem } from "@/lib/rss";
 import NewsList from "./NewsList";
+import MarketTicker from "./MarketTicker";
 
 function Skeleton() {
   return (
@@ -60,8 +61,27 @@ export default function CategoryPane({ category }: { category: CategoryKey }) {
     };
   }, [category]);
 
-  if (error) return <p className="py-16 text-center text-red-600 dark:text-red-400">{error}</p>;
-  if (!items) return <Skeleton />;
+  const ticker = category === "marche_boursier" ? <MarketTicker /> : null;
 
-  return <NewsList items={items} />;
+  if (error)
+    return (
+      <>
+        {ticker}
+        <p className="py-16 text-center text-red-600 dark:text-red-400">{error}</p>
+      </>
+    );
+  if (!items)
+    return (
+      <>
+        {ticker}
+        <Skeleton />
+      </>
+    );
+
+  return (
+    <>
+      {ticker}
+      <NewsList items={items} />
+    </>
+  );
 }
