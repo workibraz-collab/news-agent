@@ -35,7 +35,7 @@ export default function NewsApp() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-8 border-b border-gray-200 pb-6 text-center dark:border-gray-800">
         <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-400 dark:text-gray-600">
           {today}
@@ -53,7 +53,7 @@ export default function NewsApp() {
       <div className="mt-8">
         {visited.has("summary") && (
           <div className={active === "summary" ? "" : "hidden"}>
-            <SummaryPanel />
+            <SummaryPanel onNavigateToCategory={handleChange} />
           </div>
         )}
         {CATEGORY_KEYS.filter((key) => visited.has(key)).map((key) => (

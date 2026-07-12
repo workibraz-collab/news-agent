@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Digest, DigestItem, DigestStatus } from "@/lib/gemini";
-import { FEEDS } from "@/lib/feeds";
+import type { Digest, DigestSection, DigestStatus } from "@/lib/gemini";
+import { FEEDS, type CategoryKey } from "@/lib/feeds";
 import { ACCENT_CLASSES } from "@/lib/accent";
 import { timeAgo } from "@/lib/time";
 
@@ -44,8 +44,8 @@ function EmptyState({ loading, onGenerate }: { loading: boolean; onGenerate: () 
   );
 }
 
-function Kicker({ item }: { item: DigestItem }) {
-  const category = FEEDS[item.category];
+function Kicker({ section }: { section: DigestSection }) {
+  const category = FEEDS[section.category];
   const accent = ACCENT_CLASSES[category.accent];
   return (
     <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-widest ${accent.text}`}>
@@ -54,43 +54,96 @@ function Kicker({ item }: { item: DigestItem }) {
   );
 }
 
-function LeadStory({ item }: { item: DigestItem }) {
+function SeeMoreLink({
+  section,
+  onNavigate,
+}: {
+  section: DigestSection;
+  onNavigate: (category: CategoryKey) => void;
+}) {
+  const category = FEEDS[section.category];
+  const accent = ACCENT_CLASSES[category.accent];
+  return (
+    <button
+      onClick={() => onNavigate(section.category)}
+      className={`mt-2 text-xs font-semibold ${accent.text} hover:underline`}
+    >
+      Voir plus de {category.label} →
+    </button>
+  );
+}
+
+function LeadStory({
+  section,
+  onNavigate,
+}: {
+  section: DigestSection;
+  onNavigate: (category: CategoryKey) => void;
+}) {
   return (
     <div className="animate-fade-in-up border-b-2 border-gray-900 pb-6 dark:border-gray-100">
-      <Kicker item={item} />
-      <a href={item.link} target="_blank" rel="noopener noreferrer" className="group">
-        <h2 className="font-serif text-4xl font-semibold leading-[1.05] text-gray-900 group-hover:underline dark:text-gray-50 sm:text-5xl">
-          {item.title}
-        </h2>
-      </a>
+      <Kicker section={section} />
+      <h2 className="font-serif text-4xl font-semibold leading-[1.05] text-gray-900 dark:text-gray-50 sm:text-5xl">
+        {section.headline}
+      </h2>
       <p className="drop-cap mt-3 max-w-3xl text-[15px] leading-relaxed text-gray-800 dark:text-gray-300">
-        {item.blurb}
+        {section.summary}
       </p>
-      <p className="mt-2 text-xs uppercase tracking-wide text-gray-500 dark:text-gray-500">
-        {item.source} · {timeAgo(item.publishedAt)}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3">
+        {section.highlight && (
+          <a
+            href={section.highlight.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs uppercase tracking-wide text-gray-500 underline-offset-2 hover:underline dark:text-gray-500"
+          >
+            Lire : {section.highlight.source} · {timeAgo(section.highlight.publishedAt)}
+          </a>
+        )}
+        <SeeMoreLink section={section} onNavigate={onNavigate} />
+      </div>
     </div>
   );
 }
 
-function Brief({ item, delayMs }: { item: DigestItem; delayMs: number }) {
+function Brief({
+  section,
+  delayMs,
+  onNavigate,
+}: {
+  section: DigestSection;
+  delayMs: number;
+  onNavigate: (category: CategoryKey) => void;
+}) {
   return (
     <div className="animate-fade-in-up" style={{ animationDelay: `${delayMs}ms` }}>
-      <Kicker item={item} />
-      <a href={item.link} target="_blank" rel="noopener noreferrer">
-        <h3 className="font-serif text-lg font-semibold leading-snug text-gray-900 hover:underline dark:text-gray-50">
-          {item.title}
-        </h3>
-      </a>
-      <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{item.blurb}</p>
-      <p className="mt-1.5 text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-500">
-        {item.source} · {timeAgo(item.publishedAt)}
-      </p>
+      <Kicker section={section} />
+      <h3 className="font-serif text-lg font-semibold leading-snug text-gray-900 dark:text-gray-50">
+        {section.headline}
+      </h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-gray-700 dark:text-gray-300">{section.summary}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3">
+        {section.highlight && (
+          <a
+            href={section.highlight.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] uppercase tracking-wide text-gray-500 underline-offset-2 hover:underline dark:text-gray-500"
+          >
+            {section.highlight.source} · {timeAgo(section.highlight.publishedAt)}
+          </a>
+        )}
+        <SeeMoreLink section={section} onNavigate={onNavigate} />
+      </div>
     </div>
   );
 }
 
-export default function SummaryPanel() {
+export default function SummaryPanel({
+  onNavigateToCategory,
+}: {
+  onNavigateToCategory: (category: CategoryKey) => void;
+}) {
   const [digest, setDigest] = useState<Digest | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -142,8 +195,7 @@ export default function SummaryPanel() {
     );
   }
 
-  const allItems = digest.sections.flatMap((s) => s.items);
-  const [lead, ...rest] = allItems;
+  const [lead, ...rest] = digest.sections;
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
   return (
@@ -165,14 +217,16 @@ export default function SummaryPanel() {
         </span>
       </div>
 
-      {lead && <LeadStory item={lead} />}
+      {lead && <LeadStory section={lead} onNavigate={onNavigateToCategory} />}
 
-      <div
-        className="newspaper-columns mt-6"
-        style={{ columnWidth: "260px", columnGap: "2.5rem" }}
-      >
-        {rest.map((item, i) => (
-          <Brief key={item.link} item={item} delayMs={Math.min(i * 40, 400)} />
+      <div className="newspaper-columns mt-6" style={{ columnWidth: "260px", columnGap: "2.5rem" }}>
+        {rest.map((section, i) => (
+          <Brief
+            key={section.category}
+            section={section}
+            delayMs={Math.min(i * 60, 400)}
+            onNavigate={onNavigateToCategory}
+          />
         ))}
       </div>
 

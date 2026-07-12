@@ -1,33 +1,37 @@
-import type { CategoryKey } from "./feeds";
+import { CATEGORY_KEYS, FEEDS, type CategoryKey } from "./feeds";
 import type { NewsItem } from "./rss";
 import { timeAgo } from "./time";
 
 export type DigestStatus = "calme" | "normal" | "important";
 
-export interface DigestItem extends NewsItem {
-  blurb: string;
-}
-
 export interface DigestSection {
   category: CategoryKey;
-  items: DigestItem[];
+  /** Titre éditorial court et percutant résumant la rubrique (pas juste le nom de la rubrique). */
+  headline: string;
+  /** Paragraphe de synthèse de l'essentiel de la rubrique (plusieurs articles combinés). */
+  summary: string;
+  /** Article le plus représentatif de la rubrique, pour le lien "lire l'article". */
+  highlight: NewsItem | null;
 }
 
 export interface Digest {
   status: DigestStatus;
   subject: string;
+  /** Ordonnées par importance décroissante : sections[0] = article vedette de l'édition. */
   sections: DigestSection[];
 }
 
-interface RawPick {
-  index: number;
-  blurb: string;
+interface RawSection {
+  category: string;
+  headline: string;
+  summary: string;
+  highlight_index: number;
 }
 
 interface RawDigest {
   status: DigestStatus;
   subject: string;
-  picks: RawPick[];
+  sections: RawSection[];
 }
 
 // gemini-flash-latest (gemini-3.5-flash) n'a que 20 requêtes gratuites/jour :
@@ -39,7 +43,7 @@ export function buildPrompt(items: NewsItem[]): string {
   const lines = [
     "Tu es un rédacteur en chef qui prépare l'édition du jour pour un lecteur " +
       "intéressé par : basket, football, politique nationale et internationale, " +
-      "catastrophes naturelles, économie, tech.",
+      "catastrophes naturelles, économie, marché boursier, tech.",
     "",
     "Voici les articles récents disponibles, numérotés. Ignore le bruit, le clickbait " +
       "et les doublons.",
@@ -51,23 +55,33 @@ export function buildPrompt(items: NewsItem[]): string {
   });
   lines.push(
     "",
-    "Choisis les infos qui méritent vraiment d'être retenues (pas de limite stricte, mais " +
-      "reste sélectif) et rédige pour chacune un court commentaire éditorial (\"blurb\"), 1-2 " +
-      "phrases, qui apporte du contexte ou explique pourquoi c'est notable — ne répète pas juste " +
-      "le titre. Mentionne le timing de façon approximative si pertinent (ex: \"il y a 3h\").",
+    "Pour chaque rubrique où il y a de l'actu notable, rédige :",
+    "  1. un titre éditorial court et percutant (\"headline\", façon une de journal — pas juste le " +
+      "nom de la rubrique répété, un vrai titre qui donne envie de lire),",
+    "  2. UN SEUL paragraphe de synthèse (\"summary\", 3 à 5 phrases) qui résume l'essentiel à " +
+      "retenir de TOUTE l'actu récente de cette rubrique — combine plusieurs articles si besoin. " +
+      "Ne te contente jamais de reformuler un seul article : c'est un résumé de rubrique, pas la " +
+      "sélection d'un seul sujet. Le paragraphe doit donner envie d'aller consulter la rubrique " +
+      "complète pour en savoir plus, pas tout raconter en détail.",
+    "Indique aussi l'article le plus représentatif de la rubrique (highlight_index), pour le lien " +
+      "\"lire l'article\".",
     "",
     "Réponds UNIQUEMENT avec un JSON de la forme :",
-    '{"status": "calme|normal|important", "subject": "...", "picks": [{"index": 0, "blurb": "..."}]}',
+    '{"status": "calme|normal|important", "subject": "...", "sections": [{"category": "basket", "headline": "...", "summary": "...", "highlight_index": 0}]}',
     "",
     "Règles :",
-    "- status='calme' si rien de vraiment notable (peu de picks, subject très factuel).",
+    "- Ordonne \"sections\" par importance décroissante (la rubrique la plus notable du jour en premier).",
+    "- status='calme' si rien de vraiment notable dans l'ensemble (peu de sections, ton factuel).",
     "- status='normal' pour de l'actu intéressante mais pas urgente.",
     "- status='important' pour de l'actu majeure/urgente.",
-    "- \"index\" doit correspondre exactement au numéro de l'article dans la liste ci-dessus.",
+    "- \"category\" doit être exactement l'une des étiquettes entre crochets ci-dessus.",
+    "- \"highlight_index\" doit correspondre exactement au numéro d'un article de cette rubrique " +
+      "dans la liste ci-dessus.",
+    "- N'inclus pas de rubrique sans actu notable ce cycle-ci.",
     "- Si des articles proviennent d'une source dont le nom contient \"Provence\" (actu régionale " +
-      "PACA/Aix-Marseille), inclus TOUJOURS au moins 2 de ces picks, même en status='calme', même " +
-      "si l'actu globale du jour est plus importante — l'utilisateur veut suivre son actu locale " +
-      "en plus du reste, ne les laisse jamais de côté."
+      "PACA/Aix-Marseille), inclus TOUJOURS une section pour cette actu régionale, même en " +
+      "status='calme', même si l'actu globale du jour est plus importante — l'utilisateur veut " +
+      "suivre son actu locale en plus du reste, ne la laisse jamais de côté."
   );
   return lines.join("\n");
 }
@@ -124,49 +138,53 @@ async function callGeminiRaw(prompt: string): Promise<RawDigest> {
   if (!text) throw new Error("Réponse Gemini vide ou inattendue");
 
   const parsed = parseFirstJsonObject(text) as Partial<RawDigest>;
-  if (!parsed.status || !parsed.subject || !Array.isArray(parsed.picks)) {
+  if (!parsed.status || !parsed.subject || !Array.isArray(parsed.sections)) {
     throw new Error("JSON Gemini incomplet");
   }
   return parsed as RawDigest;
 }
 
-/** Regroupe les picks résolus par catégorie, dans l'ordre de première apparition,
- * en s'appuyant sur nos NewsItem d'origine (source de vérité pour lien/image/date). */
-function groupByCategory(picks: DigestItem[]): DigestSection[] {
-  const order: CategoryKey[] = [];
-  const byCategory = new Map<CategoryKey, DigestItem[]>();
-
-  for (const pick of picks) {
-    if (!byCategory.has(pick.category)) {
-      byCategory.set(pick.category, []);
-      order.push(pick.category);
-    }
-    byCategory.get(pick.category)!.push(pick);
-  }
-
-  return order.map((category) => ({ category, items: byCategory.get(category)! }));
-}
-
 export async function callGemini(prompt: string, items: NewsItem[]): Promise<Digest> {
   const raw = await callGeminiRaw(prompt);
+  const validCategories = new Set<string>(CATEGORY_KEYS);
 
-  const picks: DigestItem[] = raw.picks
-    .filter((pick) => items[pick.index])
-    .map((pick) => ({ ...items[pick.index], blurb: pick.blurb }));
+  const sections: DigestSection[] = raw.sections
+    .filter((s) => s.summary && s.headline && validCategories.has(s.category))
+    .map((s) => ({
+      category: s.category as CategoryKey,
+      headline: s.headline,
+      summary: s.summary,
+      highlight: items[s.highlight_index] ?? null,
+    }));
 
-  if (picks.length === 0) throw new Error("Gemini n'a sélectionné aucun article valide");
+  if (sections.length === 0) throw new Error("Gemini n'a produit aucune section valide");
 
-  return { status: raw.status, subject: raw.subject, sections: groupByCategory(picks) };
+  return { status: raw.status, subject: raw.subject, sections };
 }
 
 /** Filet de sécurité si Gemini échoue ou renvoie un JSON invalide : on affiche
  * quand même un digest basique plutôt que rien du tout. */
 export function fallbackDigest(items: NewsItem[]): Digest {
-  const picks: DigestItem[] = items.slice(0, 20).map((item) => ({ ...item, blurb: item.excerpt }));
+  const byCategory = new Map<CategoryKey, NewsItem[]>();
+  for (const item of items) {
+    const list = byCategory.get(item.category) ?? [];
+    list.push(item);
+    byCategory.set(item.category, list);
+  }
+
+  const sections: DigestSection[] = Array.from(byCategory.entries()).map(([category, catItems]) => ({
+    category,
+    headline: FEEDS[category].label,
+    summary: catItems
+      .slice(0, 3)
+      .map((i) => i.title)
+      .join(" — "),
+    highlight: catItems[0] ?? null,
+  }));
 
   return {
     status: "normal",
     subject: `Veille info : ${items.length} article(s)`,
-    sections: groupByCategory(picks),
+    sections,
   };
 }

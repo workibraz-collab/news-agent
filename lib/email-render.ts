@@ -1,5 +1,5 @@
 import { FEEDS } from "./feeds";
-import type { Digest, DigestItem } from "./gemini";
+import type { Digest, DigestSection } from "./gemini";
 import { timeAgo } from "./time";
 
 // Les clients mail ne supportent ni les classes Tailwind ni les polices
@@ -21,20 +21,23 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function kickerHtml(item: DigestItem): string {
-  const category = FEEDS[item.category];
+function kickerHtml(section: DigestSection): string {
+  const category = FEEDS[section.category];
   const color = ACCENT_HEX[category.accent] || "#4b5563";
   return `<p style="margin:0 0 4px 0;font-family:Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${color};">${category.emoji} ${escapeHtml(category.label)}</p>`;
 }
 
-function briefHtml(item: DigestItem): string {
+function highlightLinkHtml(section: DigestSection): string {
+  if (!section.highlight) return "";
+  return `<a href="${section.highlight.link}" style="text-decoration:none;color:#888888;font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Lire : ${escapeHtml(section.highlight.source)} · ${timeAgo(section.highlight.publishedAt)}</a>`;
+}
+
+function briefHtml(section: DigestSection): string {
   return `<div style="margin-bottom:22px;">
-    ${kickerHtml(item)}
-    <a href="${item.link}" style="text-decoration:none;color:#111111;">
-      <h3 style="margin:0 0 6px 0;font-family:Georgia,'Times New Roman',serif;font-size:17px;font-weight:600;line-height:1.3;">${escapeHtml(item.title)}</h3>
-    </a>
-    <p style="margin:0 0 6px 0;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:#333333;">${escapeHtml(item.blurb)}</p>
-    <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888888;">${escapeHtml(item.source)} · ${timeAgo(item.publishedAt)}</p>
+    ${kickerHtml(section)}
+    <h3 style="margin:0 0 6px 0;font-family:Georgia,'Times New Roman',serif;font-size:17px;font-weight:600;line-height:1.3;color:#111111;">${escapeHtml(section.headline)}</h3>
+    <p style="margin:0 0 6px 0;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;color:#333333;">${escapeHtml(section.summary)}</p>
+    ${highlightLinkHtml(section)}
   </div>`;
 }
 
@@ -47,8 +50,7 @@ export function renderDigestEmailHtml(digest: Digest): string {
     return `<p style="font-family:Arial,sans-serif;">Rien de notable ces dernières 24 heures.</p>`;
   }
 
-  const allItems = digest.sections.flatMap((s) => s.items);
-  const [lead, ...rest] = allItems;
+  const [lead, ...rest] = digest.sections;
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -58,11 +60,9 @@ export function renderDigestEmailHtml(digest: Digest): string {
   const leadHtml = lead
     ? `<div style="border-bottom:3px double #111111;padding-bottom:18px;margin-bottom:20px;">
         ${kickerHtml(lead)}
-        <a href="${lead.link}" style="text-decoration:none;color:#111111;">
-          <h1 style="margin:0 0 10px 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;line-height:1.15;">${escapeHtml(lead.title)}</h1>
-        </a>
-        <p style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333333;">${escapeHtml(lead.blurb)}</p>
-        <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888888;">${escapeHtml(lead.source)} · ${timeAgo(lead.publishedAt)}</p>
+        <h1 style="margin:0 0 10px 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;line-height:1.15;color:#111111;">${escapeHtml(lead.headline)}</h1>
+        <p style="margin:0 0 8px 0;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333333;">${escapeHtml(lead.summary)}</p>
+        ${highlightLinkHtml(lead)}
       </div>`
     : "";
 
